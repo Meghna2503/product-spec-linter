@@ -1,6 +1,6 @@
 # Security Guarantees
 
-Product Spec Linter is built privacy-first. Your product specs contain your company's
+Product Spec Linter is built privacy-first. If your product specs contain your company's
 roadmap, unreleased features, and competitive strategy. They should never leave your machine.
 
 ## Default Mode (Ollama — Fully Local)
