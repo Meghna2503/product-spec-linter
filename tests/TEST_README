@@ -1,0 +1,30 @@
+🧪 Test Suite — Product Spec Linter
+Tests live in tests/test_linter.py. Run with:
+pip install pytest
+pytest tests/ -v
+
+Test Coverage
+#	Test	Rule(s)	What it validates
+1	Single word input	COMPLETENESS	Rejected before LLM call — no API cost
+2	Empty string	AMBIGUITY, MISSING_AC	Rejected before LLM call
+3	Word count boundary (14 vs 15)	AMBIGUITY	Exact threshold enforcement
+4	Clean minimal story	AMBIGUITY	Zero findings for a well-written story
+5	Ambiguous language	AMBIGUITY	ERROR + WARNING parsed correctly
+6	Missing acceptance criteria	MISSING_AC	ERROR with Given/When/Then suggestion
+7	Internal contradiction	CONTRADICTION	conflict_with field populated
+8	Schema change blast radius	DEPENDENCY_GAP	Service impact analysis detected
+9	Large multi-layer story	COMPLETENESS	Split recommendation with ready Jira stories
+10	Multi-rule realistic story	All rules	Summary counts accurate across 5 rules
+
+Design Principles
+•	No real LLM calls — all tests use MockBackend for speed and cost-free CI
+•	Deterministic — mock responses are hardcoded, tests never flake
+•	Structural + semantic — tests validate both JSON structure and content quality
+•	Boundary-focused — edge cases (empty, min-length, max-complexity) are explicit test cases
+Adding New Tests
+def test_11_your_new_case():
+    backend = MockBackend('{"findings": [...]}')
+    linter = PRDLinter(backend)
+    result = linter.lint(YOUR_STORY, enabled_rules=["RULE"])
+    assert result["summary"]["ERROR"] == expected_count
+

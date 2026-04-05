@@ -1,0 +1,18 @@
+# Core — no external dependencies for Ollama backend
+# All standard library: urllib, json, argparse, os, sys
+
+# Optional: cloud backends
+openai>=1.0.0
+anthropic>=0.20.0
+
+# Optional: MCP server (Claude Code Enterprise)
+mcp>=0.9.0
+
+# Mandatory:
+streamlit>=1.35.0  # FOR UI
+requests>=2.31.0   # FOR API CALLS
+openpyxl>=3.1.2    # FOR EXCEL EXPORT
+
+# Optional: for testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
