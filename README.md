@@ -3,6 +3,7 @@
 > Catch ambiguity, missing acceptance criteria, and contradictions in your PRDs — before they reach your dev team.
 
 Built by a Product Owner who got tired of specs that made sense when written and caused confusion in sprint planning.
+<img width="959" height="436" alt="image" src="https://github.com/user-attachments/assets/38b64759-79f4-45f1-a737-09840720f0bd" />
 
 ---
 
@@ -23,6 +24,8 @@ Most teams catch these issues *after* handoff. This tool catches them *before*.
 | **Contradiction** | 🔴 Error | Conflicting requirements anywhere in the document |
 | **Dependency Gap** | ⚠️ Warning | Undefined integrations, unspecced APIs, assumed data sources |
 | **Completeness** | ⚪ Suggestion | Missing NFRs, rollback plan, error states, out-of-scope definition |
+
+<img width="707" height="439" alt="image" src="https://github.com/user-attachments/assets/0aa1a4dd-e9ce-4dbd-810f-0daaa55bb06f" />
 
 ---
 
