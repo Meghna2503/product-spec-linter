@@ -1,8 +1,9 @@
-# Product Spec Linter
+<img width="959" height="436" alt="image" src="https://github.com/user-attachments/assets/195b91fc-17c3-48fe-a855-1c57c2763888" /># Product Spec Linter
 
 > Catch ambiguity, missing acceptance criteria, and contradictions in your PRDs — before they reach your dev team.
 
 Built by a Product Owner who got tired of specs that made sense when written and caused confusion in sprint planning.
+<img width="959" height="436" alt="image" src="https://github.com/user-attachments/assets/38b64759-79f4-45f1-a737-09840720f0bd" />
 
 ---
 
