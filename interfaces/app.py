@@ -856,7 +856,7 @@ def run_and_show(spec_text, model, selected_rules, progress_area=None, source="t
 
     with ThreadPoolExecutor(max_workers=len(selected_rules)) as executor:
         future_to_rule = {
-            executor.submit(linter._run_rule, spec_text, rule): rule
+            executor.submit(linter.run, rule, spec_text): rule
             for rule in selected_rules
         }
         for future in as_completed(future_to_rule):
