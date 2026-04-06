@@ -16,6 +16,7 @@ Most teams catch these issues *after* handoff. This tool catches them *before*.
 ---
 
 ## What It Checks
+I created configurable rules to review specs against industry benchmarks—including IEEE 830, BDD/Gherkin, RFC 2119, SAFe blast-radius, INVEST, and OWASP.
 
 | Rule | Severity | What It Catches |
 |---|---|---|
