@@ -11,7 +11,7 @@ st.set_page_config(page_title="Product Spec Linter", page_icon="🔍", layout="w
 
 # ── Theme state ───────────────────────────────────────────────────────────
 if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
+    st.session_state.theme = "light"
 
 # ── CSS injection — single block, theme-driven via Python variable ────────
 def inject_css(theme: str):
@@ -23,7 +23,7 @@ def inject_css(theme: str):
     bg_surface      = "#1e293b"   if is_dark else "#ffffff"
     bg_surface2     = "#0f172a"   if is_dark else "#f0f4fb"
     border          = "#334155"   if is_dark else "#d1d9e6"
-    text_primary    = "#cbd5e1"   if is_dark else "#1a2236"
+    text_primary    = "#e2e8f0"   if is_dark else "#1a2236"
     text_muted      = "#e2e8f0"   if is_dark else "#5a6a85"
     input_bg        = "#1e293b"   if is_dark else "#ffffff"
     input_border    = "#475569"   if is_dark else "#b8c4d8"
@@ -363,13 +363,34 @@ label,
 .stTextArea label,
 .stTextArea [data-testid="stWidgetLabel"] p,
 .stRadio label,
-.stRadio label p,
-.stRadio label div,
-.stRadio label div p,
 .stRadio [data-testid="stWidgetLabel"] p,
 .stRadio > div > div > label > div > p,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {{
+    color: {text_primary} !important;
+    opacity: 1 !important;
+}}
+
+/* ── Radio button option text — force full brightness ── */
+.stRadio > div > label,
+.stRadio > div > label p,
+.stRadio > div > label span,
+.stRadio [data-testid="stMarkdownContainer"] p,
+div[data-testid="stRadio"] label,
+div[data-testid="stRadio"] label p,
+div[data-testid="stRadio"] label div p {{
+    color: {text_primary} !important;
+    opacity: 1 !important;
+}}
+
+/* ── All widget labels in main content (Tab panels) ── */
+.stTabs [data-testid="stWidgetLabel"] p,
+.stTabs [data-testid="stWidgetLabel"] span,
+.stTabs label,
+.stTabs .stRadio label,
+.stTabs .stTextInput label,
+.stTabs .stTextArea label,
+.stTabs .stSelectbox label {{
     color: {text_primary} !important;
     opacity: 1 !important;
 }}
@@ -420,26 +441,9 @@ div[data-testid="stAlert"] div {{
 }}
 /* ── Export buttons ── */
 .stDownloadButton > button {{
-    font-size: 13px !important; padding: 8px 16px !important;
-    height: 40px !important; min-height: 40px !important;
-    border-radius: 8px !important;
-    width: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-}}
-
-/* ── Filter section styling ── */
-[data-testid="stMultiSelect"] [data-baseweb="tag"] {{
-    background: {"#1e3a5f" if is_dark else "#e8edff"} !important;
-    border: 1px solid {"#3b82f6" if is_dark else "#4361ee"} !important;
-    border-radius: 6px !important;
-}}
-[data-testid="stMultiSelect"] [data-baseweb="tag"] span {{
-    color: {"#93c5fd" if is_dark else "#2d3fb5"} !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    font-size: 13px !important; padding: 8px 20px !important;
+    height: 36px !important; min-height: 36px !important;
+    border-radius: 6px !important; white-space: nowrap !important;
 }}
 
 /* ── Sidebar tip / caption cards ── */
@@ -487,12 +491,12 @@ SEV_CONFIG = {
     "SUGGESTION": ("⚪", "badge-sug"),
 }
 DIM_CONFIG = {
-    "MISSING_AC":     ("Acceptance Criteria",  25, 10),
-    "AMBIGUITY":      ("Clarity & Precision",  20,  8),
-    "COMPLETENESS":   ("Completeness",         20,  6),
-    "CONTRADICTION":  ("Consistency",          20, 12),
-    "DEPENDENCY_GAP": ("Dependency Coverage",  10,  8),
-    "EDGE_CASES":     ("Edge Case Coverage",   15,  6),
+    "MISSING_AC":     ("Missing Acceptance Criteria", 25, 10),
+    "AMBIGUITY":      ("Ambiguous Language",          20,  8),
+    "COMPLETENESS":   ("Completeness",                20,  6),
+    "CONTRADICTION":  ("Contradiction",               20, 12),
+    "DEPENDENCY_GAP": ("Dependency Gap",              10,  8),
+    "EDGE_CASES":     ("Edge Case Detection",         15,  6),
 }
 GRADE_CONFIG = [
     (90, "A", "#166534", "#dcfce7"),
@@ -504,18 +508,23 @@ GRADE_CONFIG = [
 
 # ── Scoring ───────────────────────────────────────────────────────────────
 def compute_score(all_findings, selected_rules):
+    """
+    Scoring: each finding deducts a % of that dimension's weight.
+      ERROR      → 20% per finding
+      WARNING    → 10% per finding
+      SUGGESTION →  3% per finding
+    Total deduction capped at 100% per dimension.
+    This prevents a single ERROR from zeroing out an entire dimension.
+    """
     dim_scores = {}
+    PCT_RATES = {"ERROR": 0.20, "WARNING": 0.10, "SUGGESTION": 0.03}
     for rule in selected_rules:
         if rule not in DIM_CONFIG: continue
-        label, weight, max_deduct = DIM_CONFIG[rule]
+        label, weight, _ = DIM_CONFIG[rule]
         rule_findings = [f for f in all_findings if f.get("rule") == rule]
-        deduction = 0
-        for f in rule_findings:
-            sev = f.get("severity", "SUGGESTION")
-            pts = {"ERROR": max_deduct, "WARNING": max_deduct * 0.5, "SUGGESTION": max_deduct * 0.2}
-            deduction += pts.get(sev, 0)
-        deduction = min(deduction, weight)
-        dim_score = round(weight - deduction)
+        total_pct = sum(PCT_RATES.get(f.get("severity", "SUGGESTION"), 0.03) for f in rule_findings)
+        total_pct = min(total_pct, 1.0)
+        dim_score = round(weight * (1 - total_pct))
         dim_scores[rule] = {"label": label, "weight": weight, "score": dim_score,
                             "pct": round((dim_score / weight) * 100)}
     total_weight = sum(v["weight"] for v in dim_scores.values())
@@ -693,12 +702,106 @@ def build_excel(all_findings, score, dim_scores):
     return buf.getvalue()
 
 # ── Main run function ─────────────────────────────────────────────────────
-def run_and_show(spec_text, model, selected_rules, progress_area=None):
+
+def _display_results(all_findings, summary, score, dim_scores, selected_rules):
+    """Re-render results from cache without re-running the model."""
+    grade_letter = grade_from_score(score)[0]
+    report_out = {
+        "score": score, "grade": grade_letter,
+        "dimensions": {k: v["pct"] for k, v in dim_scores.items()},
+        "summary": summary, "total": len(all_findings), "findings": all_findings,
+    }
+    md_lines = [f"# Lint Report — Score {score}/100 (Grade {grade_letter})\n"] + [
+        f"## [{f.get('severity','')}] {RULE_LABELS.get(f.get('rule',''),f.get('rule',''))}\n\n"
+        f"**What's wrong:** {f.get('issue','')}\n\n"
+        f"**Fix:** {f.get('suggestion','')}\n"
+        for f in all_findings
+    ]
+    excel_bytes = build_excel(all_findings, score, dim_scores)
+    b1, b2, b3, _ = st.columns([1, 1, 1, 4])
+    with b1:
+        st.download_button("📊 Export Excel",
+            data=excel_bytes if excel_bytes else b"", file_name="lint-report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True, disabled=excel_bytes is None)
+    with b2:
+        st.download_button("📝 Markdown",
+            data="\n".join(md_lines), file_name="lint-report.md",
+            mime="text/markdown", use_container_width=True)
+    with b3:
+        st.download_button("🔧 JSON",
+            data=json.dumps(report_out, indent=2), file_name="lint-report.json",
+            mime="application/json", use_container_width=True)
+    st.divider()
+    render_score_card(score, dim_scores)
+    render_metrics(summary)
+    if not all_findings:
+        st.success("🎉 No issues found — this is a clean spec!", icon="✅")
+        return
+
+    total = len(all_findings)
+
+    # ── Filter bar ────────────────────────────────────────────────
+    st.markdown("<p style='margin:16px 0 6px;font-size:13px'>"
+                f"<strong>{total} issue{'s' if total > 1 else ''} found</strong> "
+                "— filter below, copy fixes directly into Jira</p>",
+                unsafe_allow_html=True)
+
+    fc1, fc2, fc3 = st.columns([1.2, 1.8, 0.6])
+    with fc1:
+        sev_filter = st.multiselect(
+            "🔍 Severity",
+            options=["ERROR", "WARNING", "SUGGESTION"],
+            default=["ERROR", "WARNING", "SUGGESTION"],
+            key=f"filter_sev_{id(all_findings)}",
+            label_visibility="collapsed",
+            placeholder="Filter by severity…"
+        )
+    with fc2:
+        available_cats = sorted({RULE_LABELS.get(f.get("rule",""), f.get("rule","")) for f in all_findings})
+        cat_filter = st.multiselect(
+            "🗂 Category",
+            options=available_cats,
+            default=available_cats,
+            key=f"filter_cat_{id(all_findings)}",
+            label_visibility="collapsed",
+            placeholder="Filter by category…"
+        )
+    with fc3:
+        reset_key = f"reset_filter_{id(all_findings)}"
+        if st.button("✕ Reset", key=reset_key, use_container_width=True):
+            for k in list(st.session_state.keys()):
+                if k.startswith(f"filter_sev_{id(all_findings)}") or k.startswith(f"filter_cat_{id(all_findings)}"):
+                    del st.session_state[k]
+            st.rerun()
+
+    filtered = [
+        f for f in all_findings
+        if f.get("severity", "SUGGESTION") in sev_filter
+        and RULE_LABELS.get(f.get("rule",""), f.get("rule","")) in cat_filter
+    ]
+
+    shown = len(filtered)
+    if shown < total:
+        st.caption(f"Showing {shown} of {total} issues")
+
+    st.divider()
+    if not filtered:
+        st.info("No issues match the current filters.", icon="🔍")
+    else:
+        render_findings_table(filtered)
+
+def run_and_show(spec_text, model, selected_rules, progress_area=None, source="tab1"):
     backend = get_backend("ollama", model=model)
     linter  = PRDLinter(backend)
     st.session_state["_progress_html"] = ""
     if progress_area is None:
         progress_area = st.empty()
+    # Pre-build fixed layout: header + 6 individual slots, 3 per column
+    _prog_header = st.empty()
+    _prog_col1, _prog_col2 = st.columns(2)
+    _rule_slots = [_prog_col1.empty(), _prog_col1.empty(), _prog_col1.empty(),
+                   _prog_col2.empty(), _prog_col2.empty(), _prog_col2.empty()]
 
     rule_info = {
         r: {"status": "running", "findings": [], "errors": 0, "warnings": 0, "suggestions": 0}
@@ -711,38 +814,42 @@ def run_and_show(spec_text, model, selected_rules, progress_area=None):
     def render_progress(done=False):
         total     = len(selected_rules)
         completed = completed_count[0]
-        pct       = int((completed / total) * 100) if total > 0 else 0
 
-        lines = []
         if done:
-            lines.append("✅ **All checks complete** — " + f"{completed}/{total} rules analysed")
+            header = f"✅ **All checks complete** — {completed}/{total} rules analysed"
         else:
-            lines.append(f"⏳ **Analysing with {model}…** — {completed}/{total} complete")
+            header = f"⏳ **Analysing with {model}…** — {completed}/{total} complete"
 
-        lines.append("")
+        rule_lines = []
         for r in selected_rules:
             info   = rule_info[r]
             status = info["status"]
             label  = RULE_LABELS[r]
             if status == "running":
-                icon = "🔄"
+                icon   = "🔄"
                 detail = "Analysing…"
             elif status == "complete":
                 if info["errors"] > 0:
-                    icon = "🔴"
+                    icon   = "🔴"
                     detail = f"{info['errors']} error(s), {info['warnings']} warning(s)"
                 elif info["warnings"] > 0:
-                    icon = "🟡"
+                    icon   = "🟡"
                     detail = f"{info['warnings']} warning(s)"
                 else:
-                    icon = "✅"
+                    icon   = "✅"
                     detail = "No issues"
             else:
-                icon = "❌"
+                icon   = "❌"
                 detail = "Failed"
-            lines.append(f"{icon} **{label}** — {detail}")
+            rule_lines.append(f"{icon} **{label}** — {detail}")
 
-        progress_area.markdown("\n".join(lines))
+        # Update header
+        _prog_header.markdown(f"##### {header}")
+
+        # Pad rule_lines to always fill 6 slots (in case fewer rules selected)
+        padded = rule_lines + [""] * (6 - len(rule_lines))
+        for slot, text in zip(_rule_slots, padded):
+            slot.markdown(text)
 
     render_progress()
 
@@ -778,6 +885,12 @@ def run_and_show(spec_text, model, selected_rules, progress_area=None):
 
     score, dim_scores = compute_score(all_findings, selected_rules)
 
+    # Store results under source-specific keys so tab1 and tab2 never overwrite each other
+    st.session_state[f"lint_findings_{source}"] = all_findings
+    st.session_state[f"lint_summary_{source}"]  = summary
+    st.session_state[f"lint_score_{source}"]    = score
+    st.session_state[f"lint_dim_scores_{source}"] = dim_scores
+
     # ── Export bar — TOP, before findings ─────────────────────────────────
     grade_letter = grade_from_score(score)[0]
     report_out = {
@@ -793,18 +906,17 @@ def run_and_show(spec_text, model, selected_rules, progress_area=None):
     ]
     excel_bytes = build_excel(all_findings, score, dim_scores)
 
-    # ── Export bar — equal width columns ─────────────────────────────────
-    export_cols = st.columns([1, 1, 1])
-    with export_cols[0]:
+    b1, b2, b3, _ = st.columns([1, 1, 1, 4])
+    with b1:
         st.download_button("📊 Export Excel",
             data=excel_bytes if excel_bytes else b"", file_name="lint-report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True, disabled=excel_bytes is None)
-    with export_cols[1]:
+    with b2:
         st.download_button("📝 Markdown",
             data="\n".join(md_lines), file_name="lint-report.md",
             mime="text/markdown", use_container_width=True)
-    with export_cols[2]:
+    with b3:
         st.download_button("🔧 JSON",
             data=json.dumps(report_out, indent=2), file_name="lint-report.json",
             mime="application/json", use_container_width=True)
@@ -818,83 +930,64 @@ def run_and_show(spec_text, model, selected_rules, progress_area=None):
         return
 
     total = len(all_findings)
-    st.markdown(
-        f"<p style='margin:16px 0 4px;font-size:13px'>"
-        f"<strong>{total} issue{'s' if total > 1 else ''} found</strong> "
-        f"— review below, copy fixes directly into Jira</p>",
-        unsafe_allow_html=True)
-    st.divider()
 
-    # ── Severity Filter ─────────────────────────────────────────────────
-    st.markdown("<p style='margin:0 0 8px;font-size:14px;font-weight:600'>Filter Findings</p>", unsafe_allow_html=True)
-    
-    # Create filter columns
-    filter_cols = st.columns([2, 1, 1])
-    
-    with filter_cols[0]:
-        # Severity filter multiselect
-        severity_options = ["ERROR", "WARNING", "SUGGESTION"]
-        severity_labels = {"ERROR": "🔴 Errors", "WARNING": "🟡 Warnings", "SUGGESTION": "⚪ Suggestions"}
-        
-        # Default to all selected if not in session state
-        if "selected_severities" not in st.session_state:
-            st.session_state.selected_severities = severity_options.copy()
-        
-        selected_severities = st.multiselect(
-            "Show severity levels",
-            options=severity_options,
-            default=st.session_state.selected_severities,
-            format_func=lambda x: severity_labels[x],
-            key="severity_filter"
+    # ── Filter bar ────────────────────────────────────────────────
+    st.markdown("<p style='margin:16px 0 6px;font-size:13px'>"
+                f"<strong>{total} issue{'s' if total > 1 else ''} found</strong> "
+                "— filter below, copy fixes directly into Jira</p>",
+                unsafe_allow_html=True)
+
+    fc1, fc2, fc3 = st.columns([1.2, 1.8, 0.6])
+    with fc1:
+        sev_filter = st.multiselect(
+            "🔍 Severity",
+            options=["ERROR", "WARNING", "SUGGESTION"],
+            default=["ERROR", "WARNING", "SUGGESTION"],
+            key=f"filter_sev_{id(all_findings)}",
+            label_visibility="collapsed",
+            placeholder="Filter by severity…"
         )
-        st.session_state.selected_severities = selected_severities
-    
-    # Filter findings based on selection
-    filtered_findings = [f for f in all_findings if f.get("severity", "SUGGESTION") in selected_severities]
-    
-    # Show filtered count
-    filtered_count = len(filtered_findings)
-    
-    with filter_cols[1]:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if filtered_count < total:
-            st.markdown(
-                f"<p style='margin-top:8px;font-size:13px;color:#64748b'>"
-                f"Showing <strong>{filtered_count}</strong> of {total} issues</p>",
-                unsafe_allow_html=True)
-        else:
-            st.markdown(
-                f"<p style='margin-top:8px;font-size:13px;color:#64748b'>"
-                f"<strong>{total} issue{'s' if total > 1 else ''}</strong> found</p>",
-                unsafe_allow_html=True)
-    
-    # Quick filter buttons
-    with filter_cols[2]:
-        st.markdown("<br>", unsafe_allow_html=True)
-        quick_filter_cols = st.columns(2)
-        with quick_filter_cols[0]:
-            if st.button("🔴 Errors only", use_container_width=True, key="filter_errors"):
-                st.session_state.selected_severities = ["ERROR"]
-                st.rerun()
-        with quick_filter_cols[1]:
-            if st.button("Show all", use_container_width=True, key="filter_all"):
-                st.session_state.selected_severities = severity_options.copy()
-                st.rerun()
-    
+    with fc2:
+        available_cats = sorted({RULE_LABELS.get(f.get("rule",""), f.get("rule","")) for f in all_findings})
+        cat_filter = st.multiselect(
+            "🗂 Category",
+            options=available_cats,
+            default=available_cats,
+            key=f"filter_cat_{id(all_findings)}",
+            label_visibility="collapsed",
+            placeholder="Filter by category…"
+        )
+    with fc3:
+        reset_key = f"reset_filter_{id(all_findings)}"
+        if st.button("✕ Reset", key=reset_key, use_container_width=True):
+            for k in list(st.session_state.keys()):
+                if k.startswith(f"filter_sev_{id(all_findings)}") or k.startswith(f"filter_cat_{id(all_findings)}"):
+                    del st.session_state[k]
+            st.rerun()
+
+    filtered = [
+        f for f in all_findings
+        if f.get("severity", "SUGGESTION") in sev_filter
+        and RULE_LABELS.get(f.get("rule",""), f.get("rule","")) in cat_filter
+    ]
+
+    shown = len(filtered)
+    if shown < total:
+        st.caption(f"Showing {shown} of {total} issues")
+
     st.divider()
-    
-    if filtered_findings:
-        render_findings_table(filtered_findings)
+    if not filtered:
+        st.info("No issues match the current filters.", icon="🔍")
     else:
-        st.info("ℹ️ No findings match the selected filters. Adjust the severity filter above to see results.", icon="ℹ️")
+        render_findings_table(filtered)
 
 # ── Header ────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="header-bar">
     <h2 style="margin:0;font-size:22px">🔍 Product Spec Linter</h2>
     <p style="margin:6px 0 0;opacity:.8;font-size:14px">
-        Find spec gaps and architectural risks before they get raised during standups.<br>
-        <span style="opacity:.6;font-size:12px">🔒 Get 40+ checks on every story, from hidden dependencies to missing edge cases.</span>
+        Catch ambiguity, contradictions, and missing ACs — before they reach your dev team.<br>
+        <span style="opacity:.6;font-size:12px">🔒 Runs locally via Ollama. Your spec never leaves your machine.</span>
     </p>
 </div>""", unsafe_allow_html=True)
 
@@ -906,10 +999,28 @@ with st.sidebar:
         st.session_state.theme = "dark" if new_dark else "light"
         st.rerun()
     st.divider()
-    model          = st.selectbox("Model", ["kimi-k2.5:cloud", "mistral", "phi3:mini", "llama3"])
+    model          = st.selectbox("Model", [
+        # ── Cloud frontier ──────────────────────
+        "kimi-k2.5:cloud",
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+        "claude-haiku-3-5",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+        "gemini-1.5-pro",
+        # ── Local (Ollama) ───────────────────────
+        "llama3",
+        "mistral",
+        "phi3:mini",
+        "deepseek-r1:7b",
+        "qwen2.5:7b",
+    ])
     selected_rules = st.multiselect("Rules", RULES, default=RULES)
     st.divider()
-    st.caption("✨ **AI-powered spec analysis**, \n catch issues before they reach your dev team..")
+    st.caption("🔒 Ollama models run 100% locally.\nYour spec never leaves your machine.")
     st.caption("💡 **Tip:** Run one rule first to test before the full suite.")
 
 # ── Tabs ──────────────────────────────────────────────────────────────────
@@ -928,6 +1039,50 @@ with tab1:
     if spec_text:
         st.caption(f"📝 {len(spec_text.split())} words · {len(spec_text)} characters")
 
+    # ── Dynamic ETA ───────────────────────────────────────────────
+    # ── Per-model ETA (seconds per rule, parallel run) ───────────
+    MODEL_ETA = {
+        # Cloud frontier — network + inference latency
+        "kimi-k2.5:cloud":   45,
+        "claude-opus-4-5":   50,
+        "claude-sonnet-4-5": 35,
+        "claude-haiku-3-5":  20,
+        "gpt-4o":            35,
+        "gpt-4o-mini":       18,
+        "gpt-4-turbo":       45,
+        "gemini-2.5-pro":    40,
+        "gemini-2.0-flash":  18,
+        "gemini-1.5-pro":    35,
+        # Local (Ollama) — CPU/GPU dependent
+        "llama3":            35,
+        "mistral":           30,
+        "phi3:mini":         20,
+        "deepseek-r1:7b":    40,
+        "qwen2.5:7b":        32,
+    }
+    # Fallback: categorise unknown models so ETA is never just a shrug
+    def _fallback_eta(m: str) -> int:
+        m = m.lower()
+        if any(x in m for x in ["opus", "gpt-4", "pro", "ultra", "large"]):
+            return 50   # large cloud frontier
+        if any(x in m for x in ["sonnet", "flash", "turbo", "4o", "haiku"]):
+            return 30   # fast cloud
+        if any(x in m for x in ["mini", "nano", "tiny", "small", "phi"]):
+            return 18   # small / fast local
+        if any(x in m for x in ["cloud", "api", "online"]):
+            return 40   # generic cloud
+        return 35       # safe default (local medium)
+    secs_per_rule  = MODEL_ETA.get(model, _fallback_eta(model))
+    # Rules run in parallel — ETA ≈ slowest rule (1 rule worth of time) + small overhead per extra rule
+    eta_secs       = secs_per_rule + max(0, len(selected_rules) - 1) * 5
+    eta_min        = eta_secs // 60
+    eta_sec        = eta_secs % 60
+    if eta_min >= 1:
+        eta_str = f"~{eta_min} min {eta_sec}s" if eta_sec else f"~{eta_min} min"
+    else:
+        eta_str = f"~{eta_sec}s"
+    num_rules_str  = f"{len(selected_rules)} rule{'s' if len(selected_rules) != 1 else ''}"
+    st.caption(f"⏱️ Estimated time: **{eta_str}** · {num_rules_str} running in parallel")
     run = st.button("▶ Run Lint", type="primary", key="run_paste")
     if run:
         if not spec_text.strip():
@@ -958,7 +1113,18 @@ Acceptance Criteria:
             st.divider()
             st.subheader("📋 Lint Report")
             _prog_area = st.empty()
-            run_and_show(spec_text, model, selected_rules, _prog_area)
+            run_and_show(spec_text, model, selected_rules, _prog_area, source="tab1")
+
+    elif "lint_findings_tab1" in st.session_state and st.session_state["lint_findings_tab1"] is not None:
+        st.divider()
+        st.subheader("📋 Lint Report")
+        _display_results(
+            st.session_state["lint_findings_tab1"],
+            st.session_state["lint_summary_tab1"],
+            st.session_state["lint_score_tab1"],
+            st.session_state["lint_dim_scores_tab1"],
+            selected_rules
+        )
 
 # ════════════════════════════════════════════════════════
 # TAB 2 — Jira
@@ -989,12 +1155,21 @@ with tab2:
         if issue_key and issue_key != issue_key_raw.strip():
             st.caption(f"✅ Extracted key: **{issue_key}**")
         scope    = st.radio("Check against", ["Entire epic (cross-story)", "This story only"], horizontal=True)
+        # ── Dynamic ETA (Jira) ────────────────────────────────────────
+        secs_per_rule_j = MODEL_ETA.get(model, _fallback_eta(model))
+        eta_secs_j      = secs_per_rule_j + max(0, len(selected_rules) - 1) * 5
+        eta_min_j       = eta_secs_j // 60
+        eta_sec_j       = eta_secs_j % 60
+        if eta_min_j >= 1:
+            eta_str_j = f"~{eta_min_j} min {eta_sec_j}s" if eta_sec_j else f"~{eta_min_j} min"
+        else:
+            eta_str_j = f"~{eta_sec_j}s"
+        st.caption(f"⏱️ Estimated time: **{eta_str_j}** · {len(selected_rules)} rule(s) in parallel")
         run_jira = st.button("▶ Fetch & Lint", type="primary", use_container_width=True, key="run_jira")
         st.markdown("""<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;
             padding:12px;margin-top:16px;font-size:12px;color:#0369a1;">
-            🔐 API Token is used this session only, never stored.<br>
-            🏢 Enterprise users — ask your admin for API Token.<br>
-            ⚠️ Do not forget to use your org's approved AI model or run locally via Ollama.<br>
+            🔒 Credentials used this session only, never stored.<br>
+            All AI runs locally via Ollama.<br>
             <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Create a read-only token →</a>
         </div>""", unsafe_allow_html=True)
 
@@ -1041,4 +1216,15 @@ with tab2:
             if jira_spec_text:
                 st.divider()
                 _prog_area2 = st.empty()
-                run_and_show(jira_spec_text, model, selected_rules, _prog_area2)
+                run_and_show(jira_spec_text, model, selected_rules, _prog_area2, source="tab2")
+
+            elif "lint_findings_tab2" in st.session_state and st.session_state["lint_findings_tab2"] is not None:
+                st.divider()
+            st.subheader("📋 Lint Report")
+            _display_results(
+                st.session_state["lint_findings_tab2"],
+                st.session_state["lint_summary_tab2"],
+                st.session_state["lint_score_tab2"],
+                st.session_state["lint_dim_scores_tab2"],
+                selected_rules
+            )
