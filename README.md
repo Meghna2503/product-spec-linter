@@ -25,6 +25,8 @@ Most teams catch these issues *after* handoff. This tool catches them *before*.
 | **Dependency Gap** | ⚠️ Warning | Undefined integrations, unspecced APIs, assumed data sources |
 | **Completeness** | ⚪ Suggestion | Missing NFRs, rollback plan, error states, out-of-scope definition |
 
+<img width="707" height="439" alt="image" src="https://github.com/user-attachments/assets/0aa1a4dd-e9ce-4dbd-810f-0daaa55bb06f" />
+
 ---
 
 ## Privacy First
